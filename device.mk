@@ -16,7 +16,6 @@
 
 # rild
 PRODUCT_PACKAGES := \
-    rild \
     BasicSmsReceiver
 
 PRODUCT_COPY_FILES := \

@@ -1,22 +1,10 @@
 import init.grouper.usb.rc
 
 on early-init
+    # Set init and its forked children's oom_adj.
+    write /proc/1/oom_score_adj -1000
+
     mount debugfs debugfs /sys/kernel/debug
-
-on init
-    # See storage config details at http://source.android.com/tech/storage/
-    mkdir /mnt/shell/emulated 0700 shell shell
-    mkdir /storage/emulated 0555 root root
-
-    export EXTERNAL_STORAGE /storage/emulated/legacy
-    export EMULATED_STORAGE_SOURCE /mnt/shell/emulated
-    export EMULATED_STORAGE_TARGET /storage/emulated
-
-    # Support legacy paths
-    symlink /storage/emulated/legacy /sdcard
-    symlink /storage/emulated/legacy /mnt/sdcard
-    symlink /storage/emulated/legacy /storage/sdcard0
-    symlink /mnt/shell/emulated/0 /storage/emulated/legacy
 
 on early-boot
     write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor interactive
@@ -47,9 +35,20 @@ on post-fs-data
     chown root root /data/lightsensor
     mkdir /data/calibration
     mkdir /data/amit
-    
     mkdir /data/radio 0775 radio radio
     mkdir /data/radio/log 0775 radio radio
+
+    # gps
+    mkdir /data/gps
+    chown gps system /data/gps
+    chmod 1770 /data/gps
+    write /sys/class/gpio/export 162
+    write /sys/class/gpio/gpio162/value 0
+    write /sys/class/gpio/gpio162/direction out
+    chown gps system /sys/class/gpio/gpio162/value
+    chmod 0644 /sys/class/gpio/gpio162/value
+    chown gps system /dev/ttyHS1
+    chmod 0660 /dev/ttyHS1
 
     # Set indication (checked by vold) that we have finished this action
     setprop vold.post_fs_data_done 1
@@ -158,7 +157,6 @@ on boot
     chown system system /sys/bus/iio/devices/iio:device0/smd_threshold
     chown system system /sys/bus/iio/devices/iio:device0/smd_delay_threshold
     chown system system /sys/bus/iio/devices/iio:device0/smd_delay_threshold2
-
     ## AMI compass sensor
     chown system system /dev/iio:device1
     chown system system /sys/bus/iio/devices/trigger1/name
@@ -205,7 +203,6 @@ on boot
     chmod 600 /sys/bus/iio/devices/iio:device0/scan_elements/in_timestamp_en
     chmod 600 /sys/bus/iio/devices/iio:device0/temperature
     chmod 600 /sys/bus/iio/devices/iio:device0/trigger/current_trigger
-
     # new in MA 5.1.5
     chmod 600 /sys/bus/iio/devices/iio:device0/secondary_name
     chmod 600 /sys/bus/iio/devices/iio:device0/dmp_firmware
@@ -231,7 +228,6 @@ on boot
     chmod 600 /sys/bus/iio/devices/iio:device0/smd_threshold
     chmod 600 /sys/bus/iio/devices/iio:device0/smd_delay_threshold
     chmod 600 /sys/bus/iio/devices/iio:device0/smd_delay_threshold2
-
     ## AMI compass sensor
     chmod 600 /dev/iio:device1
     chmod 600 /sys/bus/iio/devices/trigger1/name
@@ -274,22 +270,26 @@ on boot
     chmod 0660 /sys/devices/system/cpu/cpufreq/interactive/max_boost
     chown system system /sys/devices/system/cpu/cpufreq/interactive/sustain_load
     chmod 0660 /sys/devices/system/cpu/cpufreq/interactive/sustain_load
+    chown system system /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+    chmod 0660 /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq
+    chown system system /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+    chmod 0660 /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq
+    chown system system /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq
+    chmod 0660 /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq
+    chown system system /sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq
+    chmod 0660 /sys/devices/system/cpu/cpu1/cpufreq/scaling_max_freq
+    chown system system /sys/devices/system/cpu/cpu2/cpufreq/scaling_min_freq
+    chmod 0660 /sys/devices/system/cpu/cpu2/cpufreq/scaling_min_freq
+    chown system system /sys/devices/system/cpu/cpu2/cpufreq/scaling_max_freq
+    chmod 0660 /sys/devices/system/cpu/cpu2/cpufreq/scaling_max_freq
+    chown system system /sys/devices/system/cpu/cpu3/cpufreq/scaling_min_freq
+    chmod 0660 /sys/devices/system/cpu/cpu3/cpufreq/scaling_min_freq
+    chown system system /sys/devices/system/cpu/cpu3/cpufreq/scaling_max_freq
+    chmod 0660 /sys/devices/system/cpu/cpu3/cpufreq/scaling_max_freq
 
 # Default Read Ahead value for sdcards
     write /sys/block/mmcblk0/queue/read_ahead_kb 2048
     write /sys/block/mmcblk1/queue/read_ahead_kb 2048
-
-# GPS init
-    write /sys/class/gpio/export 162
-    write /sys/class/gpio/gpio162/value 0
-    write /sys/class/gpio/gpio162/direction out
-    chown gps system /sys/class/gpio/gpio162/value
-    chmod 0664 /sys/class/gpio/gpio162/value
-    mkdir /data/gps
-    chown gps system /data/gps
-    chmod 770 /data/gps
-    chown gps system /dev/ttyHS1
-    chmod 0660 /dev/ttyHS1
 
 # ril
     chown radio system /sys/devices/virtual/ril/files/crash_dump_onoff
@@ -300,7 +300,6 @@ on boot
     chown radio system /sys/devices/platform/baseband_xmm_power/xmm_force_crash
     chown radio system /sys/class/ril/files/stop_hotplug_detect
 
-
 # Load WiFi driver
 
 # BB mapping symbolic name to the logging ttyACM port
@@ -308,7 +307,7 @@ on boot
 
 # Touch
     chown system system /dev/elan-iap
-    chown system system /proc/ektf_dbg
+    chown system system /proc/ektf_dbg  
     start touch_fw_update
 
 # the following settings are used to disable ipv6 on cellular networks that cannot
@@ -396,15 +395,12 @@ service iprenew_bt-pan /system/bin/dhcpcd -n
     oneshot
 
 #Sensor: load calibration files.
-service sensors-config /system/bin/sensors-config
+    service sensors-config /system/bin/sensors-config
     class main
     user root
     oneshot
 #Sensor load calibration files end
 
-# virtual sdcard daemon running as media_rw (1023)
-service sdcard /system/bin/sdcard -u 1023 -g 1023 -t 4 -l /data/media /mnt/shell/emulated
-    class late_start
 
 # bugreport is triggered by the VOLUME-DOWN and VOLUME-UP keys
 service bugreport /system/bin/dumpstate -d -p -B \
@@ -415,7 +411,7 @@ service bugreport /system/bin/dumpstate -d -p -B \
     keycodes 115 114
 
 # Start GPS daemon
-service gps-daemon /system/bin/glgps -c /system/etc/gps/gpsconfig.xml
+service gps-daemon /system/bin/gps_daemon.sh
   user gps
   group system
   class late_start
@@ -435,7 +431,7 @@ on property:sys.shutdown.requested=1recovery
 service tf_daemon /system/bin/tf_daemon -storageDir /data/tf -d
     class main
     user root
-    group shell	
+    group shell
 
 # may restart due to /data/tf not existing yet
 on property:init.svc.tf_daemon=restarting
@@ -450,10 +446,11 @@ service setup_fs /system/bin/setup_fs \
     group root
     oneshot
 
-service touch_fw_update /system/bin/sh -c "echo /system/etc/firmware/touch_fw.ekt > /sys/bus/i2c/drivers/elan-ktf3k/1-0010/update_fw"
+service touch_fw_update /system/bin/touch_fw_update.sh
     class main
     disabled
     user root
     group root
     oneshot
+
 
